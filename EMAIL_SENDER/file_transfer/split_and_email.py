@@ -1,0 +1,114 @@
+#thanks to __author__ = 'voigts2' for the initial code
+#some major changes being done so that this handles my use case better
+
+#!/usr/bin/python
+
+import smtplib
+import os
+import uuid
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email.mime.text import MIMEText
+from email.utils import formatdate
+from email import Encoders 
+import sys
+import zipfile
+import os
+#~ import thread
+import time
+import datetime
+import calendar
+import getpass
+
+COMMASPACE = ', '
+
+def delete_files(files):
+    for myfile in files:
+        os.system("del "+myfile)
+
+###-----------------------------------------------------
+def send_mail(send_from, send_to, subject, text, files, smtpserver):
+    assert isinstance(send_to, list)
+    assert isinstance(files, list)
+
+    msg = MIMEMultipart()
+    msg['From'] = send_from
+    msg['To'] = COMMASPACE.join(send_to)
+    msg['Date'] = formatdate(localtime=True)
+    msg['Subject'] = subject
+
+    msg.attach( MIMEText(text) )
+
+    for f in files:
+        part = MIMEBase('application', "octet-stream")
+        part.set_payload( open(f,"rb").read() )
+        Encoders.encode_base64(part)
+        part.add_header('Content-Disposition', 'attachment; filename="%s"' % os.path.basename(f))
+        msg.attach(part)
+
+    smtpserver.sendmail(send_from, send_to, msg.as_string())
+
+###-----------------------------------------------------
+def archive_and_split_win(dirname, filename, sizeof_chunks):
+    archiver = "7z.exe a "
+    options = " -v" + sizeof_chunks
+    systemcall = archiver + filename + ".7z " + filename + options
+    os.system(systemcall)
+    files = os.listdir(dirname)
+    files.sort()
+    return [i for i in files if filename + ".7" in i]
+
+###-----------------------------------------------------
+def archive_and_split_lin(dirname, filename, sizeof_chunks):
+    archiver = "./7za a "
+    options = " -v" + sizeof_chunks
+    systemcall = archiver + filename + ".7z " + filename + options
+    os.system(systemcall)
+    files = os.listdir(dirname)
+    files.sort()
+    return [i for i in files if filename + ".7" in i]
+
+###-----------------------------------------------------
+def send_parts(original, files):
+
+    server = 'actmail.defence.gov.au'
+    sender = 'from@fromdomain.com'
+    receivers = ['imran.ali@dsto.defence.gov.au']
+    subject='Email Transport Layer Message'
+    message = """
+
+    This is a test e-mail message with an attachment.
+    """
+
+    nParts = len(files) #8
+    unique = uuid.uuid4()
+    try:
+	smtp = smtplib.SMTP(server)
+        for x in range(1, nParts+1):
+            txferfile=files[x-1]
+            original = txferfile
+            index =  original.rfind("7z") -1
+            original = original[0:index]
+            print("Sending part %d of %d" % (x,nParts))
+            message="""
+            Nonce:%s
+            Filename:%s
+            Part:%d
+            NumParts:%d
+            """%(unique,original,x,nParts)
+            send_mail(sender,receivers,subject,message,[txferfile], smtp)
+            print("Successfully sent email")
+        smtp.close()
+    except Exception as e:
+        print("Error: unable to send email",e)
+
+###-----------------------------------------------------
+def send_file(filename, sizeof_chunks):
+    files = archive_and_split_lin(".", filename, sizeof_chunks)
+    print(files)
+    send_parts(filename,files)
+
+for filename in sys.argv[1:]:
+	send_file(filename, "5m")
+
+

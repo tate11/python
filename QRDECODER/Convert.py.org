@@ -1,0 +1,142 @@
+import subprocess
+import sys
+import os
+import WorkerManager
+import FilePathWrapper
+from WorkerManager import WorkerType
+from WorkerManager import WorkerStatus
+import Utils
+import shutil as shutil
+import FileHasher
+
+#################################################################################################################
+
+class Parameters(object):
+ 
+    def __init__(self, input_fw, output_fw, depth, quality, density):
+        self.input_fw = input_fw
+        self.output_fw = output_fw
+        self.depth = depth
+        self.quality = quality
+        self.density = density
+
+    def getHash(self, algorithm):
+        hasher = FileHasher.FileHasher(algorithm)
+        if self.input_fw.isExistingDir():
+            l = []
+            for fw in self.input_fw.getSortedDirContents(True):
+                l.append(fw.getPath())
+            hasher.addFile(l)
+        elif self.input_fw.isExistingFile():
+            hasher.addFile([self.input_fw.getPath()])
+            hasher.addStr(str(self.depth))
+            hasher.addStr(str(self.quality))
+            hasher.addStr(str(self.density))
+        else:
+            raise Exception("Error: fixme")
+        return hasher.getHash()
+
+#################################################################################################################
+
+class Converter(WorkerManager.WorkerManager):
+
+    # IN:
+    def __init__(self, prefix="converted"):
+        super(Converter, self).__init__(WorkerType.thread)
+        # FIXME do some input sanitization, eg. "prefix" has to be purely alpha
+        self.prefix = prefix
+
+    
+    def run(self, parameters_list):
+
+        for parameters in parameters_list:
+
+            # Create a worker:
+            conversionWorker = ConversionWorker(self, parameters, self.prefix)
+
+            # Schedule the worker:
+            self.scheduleWorker(conversionWorker, conversionWorker.work)
+
+        # Start the workers:
+        self.startWorkers()
+
+        # All workers complete without error?
+        if not self.joinWorkers():
+            raise AssertionError("Not all workers have completed succesfully!")
+
+        return True
+    
+#################################################################################################################
+
+class ConversionWorker(WorkerManager.Worker):
+
+
+    def work(self, rtargs):
+        self.prework()
+
+
+        status = WorkerStatus.completed_success
+
+        try:
+            
+            if self.parameters.input_fw.isExistingFile():
+
+                s = subprocess.check_output(self.getConvertCmd())
+                if (len(s) > 0):
+                    #self.err = s
+                    status = WorkerStatus.completed_fatal_error
+
+                count = len(self.parameters.output_fw.getSortedDirContents(True))
+
+                # Perform some name correction over "convert" utility's output, eg. "-0.png" should be "-00.png" if there > 10 input
+                if count > 10:
+                
+                    for fw in self.parameters.output_fw.getSortedDirContents(True):             
+                        basename = fw.getBasenameWoutExt()
+                        n = basename[(basename.index('-') + 1):]              
+                        new_fw = fw.getLeadingPathAsWrapper().getExtended("%s-%s.png"%(self.prefix, Utils.getIndexedStr(n, count)))
+                        shutil.move(fw.getPath(), new_fw.getPath())
+
+
+            elif self.parameters.input_fw.isExistingDir():
+                i = 0
+                count = len(self.parameters.input_fw.getSortedDirContents(True))
+                for fw in self.parameters.input_fw.getSortedDirContents(True):
+                    new_fw = self.parameters.output_fw.getExtended("%s-%s.png"%(self.prefix, Utils.getIndexedStr(i, (count - 1))))
+                    print "copy %s to %s"%(fw.getPath(), new_fw.getPath())                
+                    shutil.copyfile(fw.getPath(), new_fw.getPath())   
+                    i += 1
+                         
+        except: # Catching all errors
+            e = sys.exc_info()[0]
+            #self.err = str(e)
+            status = WorkerStatus.completed_fatal_error
+
+        # Finish work:   
+        self.postwork(status)
+
+
+    # IN:
+    def __init__(self, manager, parameters, prefix):
+        # Invoke the super (WorkerManager.Worker) class constructor:
+        super(ConversionWorker, self).__init__(manager)
+        self.parameters = parameters
+        self.prefix = prefix
+        
+ 
+    def getConvertCmd(self):
+        # Throw in a "-type Grayscale" perhaps?
+        l = []
+        l.append("convert")
+        l.append("-density")
+        l.append("%d"%(self.parameters.density))
+        l.append("-depth")
+        l.append("%d"%(self.parameters.depth))
+        l.append("-quality")
+        l.append("%d"%(self.parameters.quality))
+        l.append("%s"%(self.parameters.input_fw.getPath()))
+        l.append("%s/%s.png"%(self.parameters.output_fw.getPath(), self.prefix))
+        return l
+                
+
+

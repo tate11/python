@@ -1,0 +1,94 @@
+import sys
+import FileHasher
+import QuantizedInt
+from QRCode import Dimension
+
+#################################################################################################################
+
+# Customizable globals
+
+#workspace_tag = "workspace"        # Prefix dir name for output work area
+src = "src"                        # Decode input source
+srcset = "set"
+hashing_algorithm = "md5"          # Hashing algorithm for fingerprinting sessions/parameter sets/etc.
+attempt_all_sets = False           # Attempt decoding against ALL .png sets (new and previous ones) 
+project = "project"                # Input dir tag
+decode = "decode"                  # Decoding area dir tag
+attempt = "attempt"
+
+# .pdf conversion parameters
+converted_pdf = "matrix"           # Converted image filename representing matrix of QR codes
+#converted_set = "png_set"          # Directory name for converted set of .pdf -> .png files
+depth = 1
+quality = 100
+density = QuantizedInt.QuantizedInt(300, 320, 10)
+
+# QR decoding parameters
+maxpayloadsize = 2900              # Maximum size (in bytes) encodable by single QR code 
+minpayloadsize = 10                # Minimum size (in bytes) encodable by single QR code 
+x_tolerance = 3                    # Amount of tolerance/slack (in pixels) that is allowable around a single detected/extracted QR code
+y_tolerance = 3
+region_tolerance = 5               # Minimum region dimension (in pixels) in order to be considered as a possible QR code
+expected_num_rows = -1             # Expected number of rows / QR code matrix (set to -1 otherwise this value is enforced)
+expected_num_cols = -1             # Expected number of columns / QR code matrix (set to -1 otherwise this value is enforced)
+minimum_resize_dimension = 400     # The minimum resizing dimension (in pixels) of a single QR code
+maximum_resize_dimension = 1000    # The maximum resizing dimension (in pixels) of a single QR code
+resize_increment = 5               # The amount by which we change the resize dimension variable
+single_qrcode_filename = "qrcode"  # Single qrcode .png filename (without extension)
+decoded_data_filename = "data.txt" # Decoded data filename
+first_dimension = Dimension.row    # Which dimension to start processing QRcode matrices from
+
+# Use these for fingerprinting (hashing) the QR decoding parameter set:
+hashlist1 =  ['maxpayloadsize', 
+              'minpayloadsize', 
+              'x_tolerance', 
+              'y_tolerance', 
+              'region_tolerance', 
+              'minimum_resize_dimension', 
+              'maximum_resize_dimension', 
+              'resize_increment', 
+              'first_dimension']
+
+# Use these for fingerprinting (hashing) the .png -> .pdf conversion parameter set:
+hashlist2 = ['depth', 
+             'quality', 
+             'density']
+
+# XML configuration parameters
+xml_config = "config.xml"          # XML configuration file (captures information for ALL projects)
+projects_tag = "projects"          # <projects>
+project_tag = "project"            # <project>
+hash_tag = "hash"                  # <hash>
+name_tag = "name"                  # <name>
+src_tag = "src"                    # <src>
+set_tag = "set"                    # <set>
+index_tag = "index"                # <index>
+decode_tag = "decode"              # <decode>
+attempts_tag = "attempts"          # <attempts>
+attempt_tag = "attempt"            # <attempt>
+merged_tag = "merged"              # <merged>
+matrix_tag = "matrix"              # <matrix>
+row_tag = "row"                    # <row>
+col_tag = "col"                    # <col>
+qr_tag = "QR"                      # <QR>
+result_tag = "result"              # <result>
+
+#################################################################################################################
+
+# Util functions
+
+def getHash(hashlist, algorithm, index=0):
+    hasher = FileHasher.FileHasher(algorithm)
+    for s in hashlist:
+        attr = getattr(sys.modules[__name__], s)
+        if isinstance(attr, str):
+            hasher.addStr(attr)
+        elif isinstance(attr, int):
+            hasher.addStr("%d"%(attr))
+        elif isinstance(attr, QuantizedInt.QuantizedInt):
+            hasher.addStr("%d"%(attr.getVal(index)))
+        else:
+            hasher.addStr(str(attr))
+    return hasher.getHash()
+
+

@@ -1,0 +1,178 @@
+<projects>
+    <project name="bopeep">
+        <src>
+            <set hash="fcb886df0a9af648febc0ef1874dbd4b" index="0" />
+            <set hash="6d1c69fcc3ac2048242af8d219e6e2cb" index="1" />
+        </src>
+        <decode>
+            <session hash="e302b52cdfa23b4f59402822b65e09b8" index="0">
+                <set index="0">
+                    <matrix index="0">
+                        <row index="0">
+                            <QR index="0">1</QR>
+                            <QR index="1">1</QR>
+                            <QR index="2">1</QR>
+                        </row>
+                        <row index="1">
+                            <QR index="0">1</QR>
+                            <QR index="1">0</QR>
+                            <QR index="2">1</QR>
+                        </row>
+                    </matrix>
+                    <matrix index="1">
+                        <row index="0">
+                            <QR index="0">1</QR>
+                            <QR index="1">1</QR>
+                            <QR index="2">1</QR>
+                        </row>
+                        <row index="1">
+                            <QR index="0">1</QR>
+                            <QR index="1">0</QR>
+                            <QR index="2">1</QR>
+                        </row>
+                    </matrix>
+                </set>
+                <set index="1">
+                    <matrix index="0">
+                        <row index="0">
+                            <QR index="0">0</QR>
+                            <QR index="1">0</QR>
+                            <QR index="2">1</QR>
+                        </row>
+                        <row index="1">
+                            <QR index="0">1</QR>
+                            <QR index="1">0</QR>
+                            <QR index="2">1</QR>
+                        </row>
+                    </matrix>
+                    <matrix index="1">
+                        <row index="0">
+                            <QR index="0">1</QR>
+                            <QR index="1">1</QR>
+                            <QR index="2">1</QR>
+                        </row>
+                        <row index="1">
+                            <QR index="0">1</QR>
+                            <QR index="1">0</QR>
+                            <QR index="2">1</QR>
+                        </row>
+                    </matrix>
+                </set>
+            </session>
+            <merged_session>
+                <matrix index="0">
+                    <row index="0">
+                        <QR index="0">0</QR>
+                        <QR index="1">0</QR>
+                        <QR index="2">1</QR>
+                    </row>
+                    <row index="1">
+                        <QR index="0">1</QR>
+                        <QR index="1">0</QR>
+                        <QR index="2">1</QR>
+                    </row>
+                </matrix>
+                <matrix index="1">
+                    <row index="0">
+                        <QR index="0">1</QR>
+                        <QR index="1">1</QR>
+                        <QR index="2">1</QR>
+                    </row>
+                    <row index="1">
+                        <QR index="0">1</QR>
+                        <QR index="1">0</QR>
+                        <QR index="2">1</QR>
+                    </row>
+                </matrix>
+            </merged_session>
+        </decode>
+    </project>
+    <project name="fe7007dfa06a5e70931e03b8fbd437b3">
+        <src>
+            <set hash="fcb886df0a9af648febc0ef1874dbd4c" index="0" />
+            <set hash="6d1c69fcc3ac2048242af8d219e6e2cc" index="1" />
+        </src>
+        <decode>
+            <session hash="e302b52cdfa23b4f59402822b65e09b7" index="0">
+                <set index="0">
+                    <matrix index="0">
+                        <row index="0">
+                            <QR index="0">1</QR>
+                            <QR index="1">1</QR>
+                            <QR index="2">1</QR>
+                        </row>
+                        <row index="1">
+                            <QR index="0">1</QR>
+                            <QR index="1">0</QR>
+                            <QR index="2">1</QR>
+                        </row>
+                    </matrix>
+                    <matrix index="1">
+                        <row index="0">
+                            <QR index="0">1</QR>
+                            <QR index="1">1</QR>
+                            <QR index="2">1</QR>
+                        </row>
+                        <row index="1">
+                            <QR index="0">1</QR>
+                            <QR index="1">0</QR>
+                            <QR index="2">1</QR>
+                        </row>
+                    </matrix>
+                </set>
+                <set index="1">
+                    <matrix index="0">
+                        <row index="0">
+                            <QR index="0">0</QR>
+                            <QR index="1">0</QR>
+                            <QR index="2">1</QR>
+                        </row>
+                        <row index="1">
+                            <QR index="0">1</QR>
+                            <QR index="1">0</QR>
+                            <QR index="2">1</QR>
+                        </row>
+                    </matrix>
+                    <matrix index="1">
+                        <row index="0">
+                            <QR index="0">1</QR>
+                            <QR index="1">1</QR>
+                            <QR index="2">1</QR>
+                        </row>
+                        <row index="1">
+                            <QR index="0">1</QR>
+                            <QR index="1">0</QR>
+                            <QR index="2">1</QR>
+                        </row>
+                    </matrix>
+                </set>
+            </session>
+            <merged_session>
+                <matrix index="0">
+                    <row index="0">
+                        <QR index="0">0</QR>
+                        <QR index="1">0</QR>
+                        <QR index="2">1</QR>
+                    </row>
+                    <row index="1">
+                        <QR index="0">1</QR>
+                        <QR index="1">0</QR>
+                        <QR index="2">1</QR>
+                    </row>
+                </matrix>
+                <matrix index="1">
+                    <row index="0">
+                        <QR index="0">1</QR>
+                        <QR index="1">1</QR>
+                        <QR index="2">1</QR>
+                    </row>
+                    <row index="1">
+                        <QR index="0">1</QR>
+                        <QR index="1">0</QR>
+                        <QR index="2">1</QR>
+                    </row>
+                </matrix>
+            </merged_session>
+        </decode>
+    </project>
+</projects>

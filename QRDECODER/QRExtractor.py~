@@ -1,0 +1,213 @@
+import WorkerManager
+import FilePathWrapper
+import PngUtils
+#import FileUtils
+import cv2
+import Settings
+from Dimension import Dimension
+from Dimension import getInverted
+from WorkerManager import WorkerType
+from WorkerManager import WorkerStatus
+import Utils
+import shutil
+
+#################################################################################################################
+
+#class 
+
+
+#################################################################################################################
+
+class QRExtractor(WorkerManager.WorkerManager):
+
+    def run(self):
+                      
+        # For each matrix in the input source set:
+        i = 0
+        l = self.input_fw.getSortedDirContents()
+        for fw in l:
+             
+            qrcode = QRCode(self, PngUtils.PngWrapper(fw), self.output_fw.getExtended("%s%s.png"%(str(Dimension.matrix), Utils.getIndexedStr(i, (len(l) - 1)))), Dimension.matrix)
+            # Schedule a worker:
+            self.scheduleWorker(qrcode, qrcode.work) 
+
+            i += 1 
+
+        # Start the workers:
+        self.startWorkers()
+
+        # All workers complete without error?
+        if not self.joinWorkers():
+            # FIXME:
+            raise QRCode.FatalDecodeError(str("SetManager:run(): fatal error raised"))
+
+
+
+        i = 0
+        l = self.output_fw.getSortedDirContents()
+        for fw in l:
+            # Beware the artefacts
+            #print "%s"%(fw.getBasenameWoutExt())
+            new_fw = self.output_fw.getExtended("QR%s.png"%(Utils.getIndexedStr(i, (len(l) - 1))))
+            
+            shutil.move(fw.getPath(), new_fw.getPath())
+            i += 1
+
+        
+    # IN: 
+    # input_fw:  <path to>/input/                                  <--- directory containing input QR code matrix source files (they are assumed to be in order)
+    # output_fw: <path to>/output/                                 <--- output directory <path to>/extract/
+    # gen_artefacts                                                <--- generate filesystem artefacts switch
+    def __init__(self, input_fw, output_fw, gen_artefacts=False):
+        # Invoke the super (WorkerManager.Worker) class constructor:
+        super(QRExtractor, self).__init__(WorkerType.thread)      
+        self.input_fw = input_fw
+        self.output_fw = output_fw
+        self.gen_artefacts = gen_artefacts
+ 
+
+
+#################################################################################################################
+
+# This describes QRCodes in the following forms:
+# Matrix of QRCodes
+# Row of QRcode(s)
+# Column of QRCode(s)
+class QRCode(WorkerManager.Worker, WorkerManager.WorkerManager):
+
+
+    # IN: 
+    # png: png package wrapper around target QR code(s)
+    # output_fw: <path to>/decode/attemptY/setX/ [matrixA/rowB/qrC/]                 <--- where the extracted png will be output
+    # dimension: dimension of the current pngpackage (matrix, row/col or single QR code)
+    def __init__(self, manager, png, output_fw, dimension):
+        # Invoke the super (WorkerManager.Worker) class constructor:
+        super(QRCode, self).__init__(manager)
+        self.png = png
+        self.output_fw = output_fw
+        self.dimension = dimension 
+        
+
+
+    def work(self, rtargs=None):
+        self.prework()
+
+        status = WorkerStatus.completed_success
+
+       # print "Analyzing: %s (%s)"%(Utils.prettyPrint1(self.xml), Utils.prettyPrint2(self.xml))
+       # print "Analyzing: %s"%(self.output_fw.getBasenameWoutExt())
+
+        # Get nextdimension
+        nextdimension = self.dimension.next()
+
+
+        ###################################################################################################
+
+        # PROCESSING A MATRIX OF QR CODES:
+        if nextdimension != None:              
+
+            
+
+            basename = self.output_fw.getBasenameWoutExt()
+            baseoutput_fw = self.output_fw.getLeadingPathAsWrapper()
+            
+
+
+            coordspace = self.getCoordSpace(self.png, Settings.region_tolerance, nextdimension)
+            self.verifyCoordSpace(nextdimension, coordspace)
+
+            i = 0
+            for coords in coordspace:
+
+
+                nextpng = self.getRegion(self.png, nextdimension, coords)
+                nextoutput_fw = baseoutput_fw.getExtended("%s_%s%s.png"%(basename, str(nextdimension), Utils.getIndexedStr(i, (len(coordspace) - 1))))
+
+
+                
+
+                qrcode = QRCode(self, nextpng, nextoutput_fw, nextdimension)
+
+                # Schedule a worker:
+                self.scheduleWorker(qrcode, qrcode.work) 
+
+                i += 1 
+
+            # Start the workers:
+            self.startWorkers()
+
+            # All workers complete without error?
+            if not self.joinWorkers():
+                raise FatalDecodeError(str(self))
+
+                    
+        ###################################################################################################
+
+        # PROCESSING A SINGLE QR CODE
+        else:
+           # print "Writing: %s"%(self.output_fw.getPath())
+            cv2.imwrite(self.output_fw.getPath(), self.png.getImgCV2())
+            
+
+        ###################################################################################################
+            
+
+
+        # Finish work:   
+        self.postwork(status)
+
+    ###################################################################################################
+
+    def getCoordSpace(self, png, tolerance, dimension):  
+        img_rgb = png.getImgPIL().convert('RGB')    
+        if dimension == Dimension.qr:
+            dimension = getInverted(Settings.first_dimension)#dimension.getFirstInverted()    
+        if dimension == Dimension.row: 
+            coordspace = PngUtils.filterRegions(PngUtils.getRows(img_rgb), tolerance)   
+        elif dimension == Dimension.col:
+            coordspace = PngUtils.filterRegions(PngUtils.getCols(img_rgb), tolerance)
+        else:
+            raise ValueError("Invalid dimension specified: %s"%(dimension))
+        return coordspace
+
+    def verifyCoordSpace(self, dimension, coordspace):
+        numdimensions = -1
+        if dimension == Dimension.qr:
+            dimension = getInverted(Settings.first_dimension)#dimension.getFirstInverted()
+        if dimension == Dimension.row:
+            numdimensions = Settings.expected_num_rows
+        elif dimension == Dimension.col:
+            numdimensions = Settings.expected_num_cols
+        #if (self.index < (self.manager.getWorkerCount() - 1)) and (numdimensions >= 0) and (numdimensions != len(coordspace)):
+        if (self.index < (len(self.manager) - 1)) and (numdimensions >= 0) and (numdimensions != len(coordspace)):
+            raise AssertionError("Expected QR code %s count: %d (found %d)"%(dimension.name, numdimensions, len(coordspace))) 
+
+
+    # OUT: pngpackage representing: coords(pngpackage)
+    def getRegion(self, png, dimension, coords):
+        w, h = png.getSize()
+        img_cv2 = png.getImgCV2()
+        if dimension == Dimension.qr:
+            dimension = getInverted(Settings.first_dimension)#dimension.getFirstInverted()
+        if dimension == Dimension.row: 
+            n_tolerance = Settings.y_tolerance
+            d1 = h
+            d2 = w
+        elif dimension == Dimension.col:      
+            n_tolerance = Settings.x_tolerance
+            d1 = w
+            d2 = h
+        else:
+            raise ValueError("Invalid dimension specified: %s"%(dimension)) 
+
+        n1 = max(0, (coords[0] - n_tolerance))
+        n2 = min(d1, (coords[1] + n_tolerance))
+
+        if dimension == Dimension.row:
+            new_img_cv2 = img_cv2[n1:n2, 0:d2]   
+        elif dimension == Dimension.col: 
+            new_img_cv2 = img_cv2[0:d2, n1:n2]
+        else:
+            raise ValueError("Invalid dimension specified: %s"%(dimension)) 
+
+        return PngUtils.PngWrapper(None, None, new_img_cv2)

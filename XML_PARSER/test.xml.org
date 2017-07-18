@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<projects>
+
+  <project>
+    <hash>ABCDEF0</hash> 
+    <index>0</index>   
+    <desc>this is a stupid project description</desc>
+  </project> 
+
+  <project>
+    <hash>ABCDEF1</hash> 
+    <index>1</index>  
+    <desc>yet another stupid project description</desc> 
+  </project> 
+
+</projects>
+
+

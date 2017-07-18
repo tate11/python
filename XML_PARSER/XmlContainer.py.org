@@ -1,0 +1,321 @@
+import xml.etree.ElementTree
+import os
+
+#<data>
+#    <country name="Liechtenstein">
+#        <rank updated="yes">2</rank>
+#        <year>2008</year>
+#        <gdppc>141100</gdppc>
+#        <neighbor name="Austria" direction="E"/>
+#        <neighbor name="Switzerland" direction="W"/>
+#    </country>
+#    <country name="Singapore">
+#        <rank updated="yes">5</rank>
+#        <year>2011</year>
+#        <gdppc>59900</gdppc>
+#        <neighbor name="Malaysia" direction="N"/>
+#    </country>
+#    <country name="Panama">
+#        <rank updated="yes">69</rank>
+#        <year>2011</year>
+#        <gdppc>13600</gdppc>
+#        <neighbor name="Costa Rica" direction="W"/>
+#        <neighbor name="Colombia" direction="E"/>
+#    </country>
+#</data>
+
+#
+# We expect .xml as shown below.
+# Given a <node>, there are multiple <item> sub-nodes.
+# An <id> tag uniquely identifies each <item>.
+#
+# <node>
+#
+#   <item>
+#     <id>identifer 1</id> 
+#     <blah>...</blah>   
+#     <blah>...</blah>     
+#     ... etc. 
+#   </item> 
+#
+#   <item>
+#     <id>identifier 2</id> 
+#     <blah>...</blah>   
+#     <blah>...</blah>   
+#     ... etc.
+#   </item> 
+#
+#   etc.
+#
+# </node>
+#
+
+# Rename SimpleXmlTree   ??
+class XmlContainer(object):
+
+    # If you want to create a new .xml:
+    # - set create to True
+    # - define your root_tag (eg. <node> in above)
+    def __init__(self, xmlfile, create=False, root_tag=""):
+        self.xmlfile = xmlfile
+   
+        # Check that file exists:
+        if os.path.exists(self.xmlfile):
+            # Check we have R/W access:
+            f = open(self.xmlfile, 'rw')  
+            # Throws xml.etree.ElementTree.ParseError if input xml is malformed or empty file:
+            self.et = xml.etree.ElementTree.parse(self.xmlfile) 
+                 
+        elif (create and len(root_tag) > 0):
+            f = open(self.xmlfile, 'a+')
+            root =  xml.etree.ElementTree.Element(root_tag)
+            self.et = xml.etree.ElementTree.ElementTree(root)  
+        else:
+            # FIXME:
+            raise IOError("Error: invalid arguments provided")     
+          
+        f.close()
+        
+
+    def getRoot(self):
+        return XmlNode(self.et.getroot())
+
+    def update(self, prettify=False):
+        if prettify:
+            self.prettify2(self.et.getroot())
+        self.et.write(self.xmlfile)
+
+    # Bit buggy
+    def prettify(self, element, indent='  '):
+        queue = [(0, element)]  # (level, element)
+        while queue:
+            level, element = queue.pop(0)
+            children = [(level + 1, child) for child in list(element)]
+            if children:
+                element.text = '\n' + indent * (level+1)  # for child open
+            if queue:
+                element.tail = '\n' + indent * queue[0][0]  # for sibling open
+            else:
+                element.tail = '\n' + indent * (level-1)  # for parent close
+            queue[0:0] = children  # prepend so children come before siblings
+
+    # No bugs found as yet
+    def prettify2(self, elem, level=0, more_sibs=False):
+        i = "\n"
+        if level:
+            i += (level-1) * '  '
+        num_kids = len(elem)
+        if num_kids:
+            if not elem.text or not elem.text.strip():
+                elem.text = i + "  "
+                if level:
+                    elem.text += '  '
+            count = 0
+            for kid in elem:
+                self.prettify2(kid, level+1, count < num_kids - 1)
+                count += 1
+            if not elem.tail or not elem.tail.strip():
+                elem.tail = i
+                if more_sibs:
+                    elem.tail += '  '
+        else:
+            if level and (not elem.tail or not elem.tail.strip()):
+                elem.tail = i
+                if more_sibs:
+                    elem.tail += '  '
+
+
+
+class XmlNodeVisitor(object):
+
+    def __init__(self, ignore_tags=None,inverse=False):
+        if ignore_tags is not None:
+            self.ignore_tags = ignore_tags              # The tags of nodes to ignore
+        else:
+            self.ignore_tags = []
+        self.inverse = inverse                          # Inverse ignore, ie. the ignore_tags becomes 'support_only' tags  
+
+    def invert(self, b):
+        if self.inverse:
+            return not b
+        return b
+
+    def willVisit(self, node):
+        if node.getTag() not in self.ignore_tags:
+            return self.invert(True)
+        return self.invert(False)
+
+    def visit(self, node):
+        # FIXME: try/except or return some kind of status???
+        node.visit(self)
+
+
+class XmlNode(object):
+
+    def __init__(self, node, tag=None, val=None):
+        # Create XmlNode from existing xml.etree.ElementTree.Element:
+        if node is not None:
+            self.node = node
+        # Else create a brand new XmlNode:
+        elif tag is not None:
+            self.node = xml.etree.ElementTree.Element(tag)
+            if val is not None:
+                if len(str(val).strip()) > 0:
+                    self.node.text = str(val)
+        else:
+            # FIXME:
+            raise Exception
+
+    #########################################################################################################
+    # BASIC TREE FUNCTIONS
+
+    # FIXME: need a remove() (opposite to append), and dump()
+
+    # Make this class iterable, ie.
+    # for node in self:
+    #     ...
+    def __iter__(self):
+        return iter(map(XmlNode, self.node))
+         
+
+    def __len__(self):
+        return len(self.node)
+
+    # Return the "node" part of: <node> val </node>
+    def getTag(self):
+        return self.node.tag
+
+    # Return the "val" part of: <node> val </node>
+    def getVal(self):
+        return self.node.text
+
+    # Sets val of this node
+    def setVal(self, val):
+        self.node.text = str(val)
+
+    # Is there a "val" part of:<node> val </node>
+    def hasVal(self):
+        if self.node.text is None:
+            return False
+        elif len((self.node.text).strip()) == 0:
+            return False
+        return True
+        #return (len(self.node.text) > 0)
+
+    def getIndent(self, count):
+        s = ""
+        i = 0      
+        while i < count:
+            s += " "
+            i += 1
+        return s
+
+    def dump(self, indent=0):
+        s = ""
+        s += self.getIndent(indent) + "<%s"%(self.getTag())
+        if self.hasVal():
+            s += "='%s'"%(self.getVal())
+        s += ">\n"
+        for node in self:
+            s += node.dump(indent + 4)
+        s += self.getIndent(indent) + "</%s>\n"%(self.getTag())
+        return s
+
+    # Am I a parent node (ie. I have children)
+    def isParent(self):
+        if len(self) > 0:
+            return True
+        return False
+
+    # Am I a child node (ie. I have no children)
+    def isChild(self):
+        return not self.isParent()
+
+    # Return the first child node with a given tag, and (optionally) val.
+    def getNode(self, tag, val=None):
+        for node in self:
+            if node.getTag() == tag:
+                if val is None:
+                    return node
+                elif node.getVal() == str(val):
+                    return node
+        return None
+
+    # Do I have a child node of given tag, and (optionally) val?
+    def hasNode(self, tag, val=None):
+        node = self.getNode(tag, val)
+        if node is None:
+            return False
+        return True
+ 
+    # Return a list of all children nodes or ones with a given tag.
+    def getNodes(self, tag=None):
+        nodes = []
+        for node in self:
+            if (node.getTag() == tag) or (tag is None):
+                nodes.append(node)
+        return nodes
+
+    # Return the count of all children nodes or ones with a given tag.
+    def getNodeCount(self, tag=None):
+        return len(self.getNodes(tag))
+
+    # Return the val of the first child node found with a given tag.
+    def getNodeVal(self, tag):
+        node = self.getNode(tag)
+        if node is not None:
+            return node.getVal()
+        return None
+
+    # Add children to this node.
+    def add(self, nodes):
+        for n in nodes:
+            self.node.append(n.node)
+
+    # Visit this node and all children using a XmlNodeVisitor
+    def visit(self, visitor):
+
+        # Should visitor visit this node?
+        if visitor.willVisit(self):
+
+            # Pre-visit this node
+            if hasattr(visitor, 'previsit'):              
+                visitor.previsit(self)    
+
+            # Visit this node's children
+            for node in self:                
+                node.visit(visitor)
+
+            # Post-visit this node
+            if hasattr(visitor, 'postvisit'):              
+                visitor.postvisit(self)   
+
+    #########################################################################################################
+    # EXTENDED TREE FUNCTIONS
+
+    # Gets an existing node or creates/adds/returns one.
+    def getOrAddNode(self, tag, val=None):
+        node = self.getNode(tag, val)
+        if node is None:
+            node = XmlNode(None, tag, val)
+            self.add([node])
+        return node
+
+   # Gets a grandchild node of given tag (first one found) and optionally val.
+    def getGrandChild(self, tag, val=None):
+        grandChild = None
+        for node in self:
+            grandChild = node.getNode(tag, val)
+            if grandChild is not None:
+                break
+        return grandChild
+       
+
+   # def appendIndexedNode(self, tag):
+        
+
+    
+
+
+
+

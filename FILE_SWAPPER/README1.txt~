@@ -1,0 +1,21 @@
+This is a python script for taking an input file 1 (on filesystem 1) and an input file 2 (on filesystem 2), and swapping them, using a specified
+swap buffer/space.
+The end result should be file 1 on filesystem 2, and file 2 on filesystem 1.
+The algorithm is roughly sketched out in: 'README2.pdf'.
+Even though this is a python script, there are strict OS requirements (see below).
+
+Why/when would you use this? When you are performing data recovery. Suppose you have a filesystem images whose sizes are in the order of terabytes.
+Sometimes you may need to juggle these round. For example, you may need to put a 1 TB recovered image file currently residing on a 1 TB disk, onto
+a 4 TB disk that has a 500 GB image file + 500 GB free space. In this case you want to swap the 1 TB image with the 500 GB image. If you were to do
+this manually, there are a number of approaches but all would involve some kind of swap space or interim buffer. This script automates all of this.
+You just specify the swap destination, how much space to provision for the swap buffer, and away you go.
+
+TO DO:
+- More testing!
+
+
+
+OS: must be Linux (developed/tested on Ubuntu 14.04 LTS)
+Filesystem1: probably should be ext4
+Filesystem2: probably should be ext4
+Swap buffer: not hard requirements i don't believe

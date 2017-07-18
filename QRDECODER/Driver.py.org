@@ -1,0 +1,319 @@
+#!/usr/bin/python
+
+import sys
+import os
+import optparse
+import shutil
+import FilePathWrapper
+import SrcManager
+import FileHasher
+import DecodeManager
+import FileUtils
+from lxml import etree as ElementTree
+import Settings
+import XmlUtils
+import Utils
+
+import MultiHandler
+import Convert # EXPERIMENTAL
+import Extract # EXPERIMENTAL
+import Decode
+import XmlFileMap
+
+from WorkerManager import WorkerStatus
+from WorkerManager import WorkerType
+ 
+#################################################################################################################
+# COMMAND LINE ARGUMENT PARSER
+
+if __name__ == "__main__":
+    parser = optparse.OptionParser()
+    parser.add_option("-i", help="input .pdf file OR directory containing .png files (mandatory)", dest="inputtarget",  metavar="<inputtarget>")
+    parser.add_option("-o", help="output directory (mandatory)", dest="outputdir",  metavar="<outputdir>")
+    parser.add_option("-v", help="verbose", action="store_true", dest="verbose",  default=False)
+    parser.add_option("-x", help="don't ask (just do)", action="store_true", dest="dontask",  default=False)
+    (opts, args) = parser.parse_args()
+
+Settings.verbose = opts.verbose
+
+#################################################################################################################
+# CHECK USER INPUT
+
+if (opts.inputtarget is None) or (len(opts.inputtarget) == 0):
+    print "Error: no input specified\n"
+    parser.print_help()
+    exit(-1)
+else:
+    input_fw = FilePathWrapper.FilePathWrapper(opts.inputtarget)
+
+if (opts.outputdir is None) or (len(opts.outputdir) == 0):
+    print "Error: no output directory specified\n"
+    parser.print_help()
+    exit(-1)
+else:
+    output_fw = FilePathWrapper.FilePathWrapper(opts.outputdir)
+
+#################################################################################################################
+# END-USER SANITY CHECK
+
+if input_fw.isExistingFile():
+    print "\nInput file: %s"%(input_fw)
+elif input_fw.isExistingDir():
+    print "\nInput directory: %s"%(input_fw)
+else:
+    print "Error: input could not be found: %s"%(input_fw)
+    parser.print_help()
+    exit(-1)
+
+print "Output directory: %s"%(output_fw)
+if output_fw.exists():
+    if output_fw.isExistingDir():
+        print "\nWARNING: output directory already exists!"
+    else:
+        print "Error: existing output not valid: %s"%(output_fw)
+        parser.print_help()
+        exit(-1)
+ 
+if (opts.dontask is False):   
+    print ""
+    response = raw_input("Is this correct? (y/n): ")
+    if (not response.upper() == 'Y'):
+        print ""
+        print "Exiting!"
+        exit(0)
+    
+print ""
+print "Starting..."
+
+#################################################################################################################
+# CREATE PROJECTS DIRECTORY AND XML CONFIG FILE
+
+# Does <path to>/project/ exist?
+if not output_fw.exists():
+    # No. Create it.
+    if not output_fw.createDir():
+        print "Error: could not create directory: %s"%(output_fw)
+        exit(-1)
+    
+xml_config_fw = output_fw.getExtended(Settings.xml_config) 
+
+# Does xml config file exists?   
+if xml_config_fw.isExistingFile():
+    # Yes. Open it. 
+    et = ElementTree.parse(xml_config_fw.getPath()) 
+    xmlroot = et.getroot()
+else:
+    # No. Create it.
+    xmlroot = ElementTree.Element(Settings.project_tag)
+    et = ElementTree.ElementTree(xmlroot)  
+        
+#################################################################################################################
+# CONVERT INPUT
+
+params = []
+new_params = []
+xmlfilemap_list = []
+
+# Generate input parameters:
+if input_fw.isExistingDir():
+    params.append(Convert.Parameters(input_fw, None, 0, 0, 0))
+else:
+    for density in Settings.density:
+        params.append(Convert.Parameters(input_fw, None, Settings.depth, Settings.quality, density))
+
+for p in params:
+    try:
+        xmlfilemap = XmlFileMap.XmlFileMap(output_fw, xmlroot, Settings.input_tag, p.getHash(Settings.hashing_algorithm))
+    except Exception:
+        exit(-1)
+
+    if len(xmlfilemap) == 0:
+        p.output_fw = xmlfilemap.output_fw
+        new_params.append(p)
+    #else:
+       #params.remove(p)      <--- try this, remove our need for new_params    
+        
+    xmlfilemap_list.append(xmlfilemap)
+
+
+if len(new_params) > 0:
+    multihandler = MultiHandler.Manager(WorkerType.process, Convert.Converter(Settings.converted_pdf))
+    multihandler.run(new_params)
+
+
+#################################################################################################################
+# EXTRACT QR CODES
+
+new_params = []
+old_xmlfilemap_list = xmlfilemap_list
+xmlfilemap_list = []
+
+for old_xmlfilemap in old_xmlfilemap_list:
+      
+    p = Extract.Parameters(None, None, Settings.x_tolerance, Settings.y_tolerance, Settings.region_tolerance, Settings.first_dimension)
+
+    try:
+        xmlfilemap = XmlFileMap.XmlFileMap(old_xmlfilemap.output_fw, old_xmlfilemap.xml, Settings.extract_tag, p.getHash(Settings.hashing_algorithm))
+    except Exception:
+        exit(-1)
+
+    if len(xmlfilemap) == 0:
+        p.input_fw = old_xmlfilemap.output_fw
+        p.output_fw = xmlfilemap.output_fw
+        new_params.append(p)
+    #else:
+       #params.remove(p)      <--- try this, remove our need for new_params   
+
+    xmlfilemap_list.append(xmlfilemap)
+
+multihandler = MultiHandler.Manager(WorkerType.process, Extract.QRExtractor())
+multihandler.run(new_params)
+
+#################################################################################################################
+# DECODE QR CODES - not quite... this should be done sequentially
+
+new_params = []
+old_xmlfilemap_list = xmlfilemap_list
+xmlfilemap_list = []
+
+for old_xmlfilemap in old_xmlfilemap_list:
+      
+    p = Decode.Parameters(None, None, Settings.maxpayloadsize, Settings.minpayloadsize, Settings.minimum_resize_dimension, Settings.maximum_resize_dimension, Settings.resize_increment)
+
+    try:
+        xmlfilemap = XmlFileMap.XmlFileMap(old_xmlfilemap.output_fw, old_xmlfilemap.xml, Settings.decode_tag, p.getHash(Settings.hashing_algorithm))
+    except Exception:
+        exit(-1)
+
+    if len(xmlfilemap) == 0:
+        p.input_fw = old_xmlfilemap.output_fw
+        p.output_fw = xmlfilemap.output_fw
+        new_params.append(p)
+    #else:
+       #params.remove(p)      <--- try this, remove our need for new_params   
+
+    xmlfilemap_list.append(xmlfilemap)
+
+multihandler = MultiHandler.Manager(WorkerType.process, Decode.QRDecoder())
+multihandler.run(new_params)
+
+FileUtils.writeToFile(xml_config_fw.getPath(), XmlUtils.dump(xmlroot, 4))
+
+exit(0)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#################################################################################################################
+# CHECK TO SEE IF AN EXISTING/PREVIOUS PROJECT HAS ALREADY BEEN DECODED
+
+xmldecode = XmlUtils.getOrAddChild(xmlproj, Settings.decode_tag)
+xmlmerged = XmlUtils.getOrAddChild(xmldecode, Settings.merged_tag)
+
+if Utils.isDecoded(xmlmerged):
+    print "\nProject successful already... (exiting!)"
+    exit(0)
+
+# FIXME - to do
+
+#################################################################################################################
+# GENERATE ANY INPUT DECODING SOURCE SETS
+
+# Get the <src> xml sub-node for current project (or create it, if DNE):
+xmlsrc = XmlUtils.getOrAddChild(xmlproj, Settings.src_tag)
+
+src_fw = output_fw.getExtended(Settings.src)
+
+if not src_fw.exists():
+    if not src_fw.createDir():
+        print "Error: could not create directory: %s"%(srcset_fw)
+        exit(-1)
+
+srcmanager = SrcManager.SrcManager(input_fw, src_fw, xmlsrc)
+try:
+    srcmanager.run()
+except Exception as e:
+    print str(e)
+    exit(-1)
+
+
+#################################################################################################################
+# PERFORM DECODING
+
+decode_fw = output_fw.getExtended(Settings.decode)
+
+if not decode_fw.createDir():
+    print "Error: could not create directory: %s"%(decode_fw)
+    exit(-1)
+
+# Get the <decode> xml sub-node for current project (or create it, if DNE):
+xmldecode = XmlUtils.getOrAddChild(xmlproj, Settings.decode_tag)
+
+sessionManager = DecodeManager.SessionManager(srcmanager, decode_fw, xmldecode)
+try:
+    sessionManager.run()  # seems to be throwing an exception with message: "Not all workers have completed succesfully!"
+    #if sessionManager.status == WorkerStatus.completed_success:
+    #    print "YAY"
+    #else:
+    #    print "Boo... doing funky stuff now"
+        #result = sessionManager.xHaveData()
+       # print result
+except AssertionError as e:
+    print str(e)
+    exit(-1)
+
+#################################################################################################################
+# FORCE END TEST
+
+# PHASE IN
+# DOESN'T WRITE CLEAN XML:
+#et.write(xml_config_fw)
+FileUtils.writeToFile(xml_config_fw, XmlUtils.dump(xmlproj, 4))
+
+#print ""
+#print XmlUtils.px(xmldecode)
+#print XmlUtils.dump(xmlprojs, 4)
+
+print ""
+if Utils.isDecoded(xmlmerged):
+    print "Project decoded successfully..."
+else:
+    print "Project decoded unsuccessfully..."
+
+
+
+
+# BETTER WOULD BE:
+#ElementTree.dump(et) #<---- redirect from stdout to file
+
+
+exit(0)
+
+
+
+#################################################################################################################
+
+
+
+
+    
+
+
+
+
+
+
+

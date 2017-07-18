@@ -1,0 +1,29 @@
+import math
+import subprocess
+
+# Converts from MB to bytes
+def MBtoBytes(n):
+    return (n * math.pow(2, 20))
+
+
+# Suppose you have a 4097 byte file. 
+# For a blocksize of 4096, you need at least 2 blocks to cover this file.
+# But if you do this in python: 4097 / 4096 , you will get: 1 
+# This is how you ensure you get 2:
+def getRequiredBlockCount(n, bs):
+    return int(math.ceil(n / float(bs)))      
+
+
+# For running simple processes where we simply
+# need to know if it ran successfully or not.
+def runProcess(cmd_list):
+    a = subprocess.Popen(cmd_list)
+    a.wait()
+    # THIS IS INSUFFICIENT CONDITION FOR TELLING WHETHER OR NOT
+    # A PROCESS WAS SUCCESSFUL.
+    # FOR EXAMPLE, if you provide a bad parameter to a process, that 
+    # process might complain but return 0. YOU HAVE TO CHECK THE 
+    # PROCESS's STDOUT!
+    if a.returncode != 0:
+        return False
+    return True

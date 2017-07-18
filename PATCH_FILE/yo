@@ -1,0 +1,37 @@
+// This is an example header fill we need to populate
+
+#ifndef DUMMY_H
+#define DUMMY_H
+
+//////////////////////////////////////////////////////
+// Includes
+
+#include <stdio.h>
+#include "foobar.h"
+
+//////////////////////////////////////////////////////
+// Defines
+
+#define HOMER 57
+#define MARGE 53
+
+// INSERT CONTENT HERE
+
+//////////////////////////////////////////////////////
+// Structs/Typedefs/etc.
+
+typedef struct {
+    int request;
+    char* requestStr;
+} WoodyAllenInfo;
+
+
+//////////////////////////////////////////////////////
+// Function protos
+
+void homerHandler(Mission *mission);
+void margeHandler(Mission *mission);
+
+// INSERT CONTENT HERE
+
+#endif /* DUMMY_H */

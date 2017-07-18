@@ -1,0 +1,61 @@
+INPUT: test/foo_dir1
+test/foo_dir1
+test
+['test']
+foo_dir1
+------------------
+INPUT: test/foo_dir1/
+test/foo_dir1
+test
+['test']
+foo_dir1
+------------------
+INPUT: test/foo_dir2/
+test/foo_dir2
+test
+['test']
+foo_dir2
+test/foo_dir2/moo1.txt
+test/foo_dir2/moo2.txt
+------------------
+INPUT: test/foo_file1.txt
+test/foo_file1.txt
+test
+['test']
+foo_file1.txt
+True
+foo_file1
+foo_file1
+.txt
+txt
+['.txt']
+['txt']
+------------------
+INPUT: test/foo_file2
+test/foo_file2
+test
+['test']
+foo_file2
+False
+foo_file2
+foo_file2
+
+
+[]
+[]
+------------------
+INPUT: test/foo_file3.txt.org
+test/foo_file3.txt.org
+test
+['test']
+foo_file3.txt.org
+True
+foo_file3
+foo_file3.txt
+.org
+org
+['.txt', '.org']
+['txt', 'org']
+------------------
+INPUT: test/invalid
+------------------

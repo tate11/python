@@ -1,0 +1,32 @@
+import XmlUtils
+from lxml import etree as ElementTree
+import Settings
+import FilePathWrapper
+
+class Input(object):
+ 
+    def __init__(self, input_fw, xmlroot, tag, hashval):
+        self.input_fw = input_fw
+        self.xmlroot = xmlroot
+        self.tag = tag
+        self.hashval = hashval
+        self.output_fw = None
+        self.xml = None
+        self.isNew = False
+
+    def run(self):
+        xml = self.xmlroot.find("%s[@%s='%s']"%(self.tag, Settings.hash_attrib, self.hashval))
+        if xml is None:
+            # No.
+            index = str(len(self.xmlroot))
+            xml = XmlUtils.getOrAddChild(self.xmlroot, self.tag, {Settings.index_attrib:str(index), Settings.hash_attrib:self.hashval})    
+            self.isNew = True    
+        else:
+            index = xml.get(Settings.index_attrib)
+        self.output_fw = self.input_fw.getExtended("%s%s"%(self.tag, index))  
+        self.xml = xml
+
+        if not output_fw.createDir():
+            return False
+
+        return True

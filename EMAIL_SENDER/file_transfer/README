@@ -1,0 +1,3 @@
+Usage:
+
+$ python split_and_email.py file_to_send.foo

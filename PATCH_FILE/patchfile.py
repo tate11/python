@@ -1,0 +1,73 @@
+#!/usr/bin/env python
+
+import os
+import sys
+import optparse
+
+#   EXAMPLE USAGE:
+#   $ python patchfile.py -i example.h -o foobar
+#  
+#   Now compare the 'foobar' to 'example.h' and 
+#   observe where content was added.
+
+def applyPatch(oldlines, targetline, patchlines):
+    newlines = []
+    for oldline in oldlines:
+        newlines.append(oldline)
+        if oldline.startswith(targetline):
+            newlines = newlines + patchlines
+    return newlines
+    
+if __name__ == "__main__":
+    parser = optparse.OptionParser()
+    parser.add_option("-i", help="input file (required)", dest="inputfile",  metavar="<filename>")
+    parser.add_option("-o", help="output file (required, overwrites existing)", dest="outputfile",  metavar="<filename>")
+    (opts, args) = parser.parse_args()
+
+if opts.inputfile is None:
+    print "Error: input file not provided\n"
+    parser.print_help()
+    exit(-1)
+
+if opts.outputfile is None:
+    print "Error: output file not provided\n"
+    parser.print_help()
+    exit(-1)
+
+if opts.inputfile is opts.outputfile:
+    print "Error: input and output file cannot be same\n"
+    parser.print_help()
+    exit(-1)
+
+if not os.path.exists(opts.inputfile):
+    print "Error: %s does not exist"%(opts.inputfile)
+    exit(-1)
+
+###########################################################
+
+lines = []
+newlines = []
+
+with open(opts.inputfile, 'r') as f:
+    # Strip whitespace at the end of each line and put into list:
+    lines = map(str.rstrip, f.readlines())
+    f.close()
+
+newlines.append("")
+newlines.append("#define HOMER 57")
+newlines.append("#define MARGE 53")
+lines = applyPatch(lines, "// Defines", newlines)
+
+newlines = []
+newlines.append("")
+newlines.append("void homerHandler(Mission *mission);")
+newlines.append("void margeHandler(Mission *mission);")
+lines = applyPatch(lines, "// Function protos", newlines)
+
+with open(opts.outputfile, 'w') as f:
+    # Concat strings in list with newline separator:
+    f.write("\n".join(lines))
+    f.close()
+
+###########################################################
+

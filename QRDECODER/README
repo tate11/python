@@ -1,0 +1,7 @@
+- Enforce out-path arg as where the project will live (thus the -n switch will be redundant)
+
+- Hash of the source should = (src+conversion parameters)
+  - This way you could specify different src for the same project
+  - Need to enforce rowcount, colcount ?
+
+

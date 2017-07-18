@@ -1,0 +1,32 @@
+// This is an example header fill we need to populate
+
+#ifndef DUMMY_H
+#define DUMMY_H
+
+//////////////////////////////////////////////////////
+// Includes
+
+#include <stdio.h>
+#include "foobar.h"
+
+//////////////////////////////////////////////////////
+// Defines
+
+// INSERT CONTENT HERE
+
+//////////////////////////////////////////////////////
+// Structs/Typedefs/etc.
+
+typedef struct {
+    int request;
+    char* requestStr;
+} WoodyAllenInfo;
+
+
+//////////////////////////////////////////////////////
+// Function protos
+
+// INSERT CONTENT HERE
+
+#endif /* DUMMY_H */
+
